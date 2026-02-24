@@ -1,176 +1,175 @@
+#import "lib.typ": frontiers
 
-#set page(
-  paper: "a4",
-  margin: (x: 2.5cm, y: 2.5cm),
-)
-#set text(
-  font: "Linux Libertine",
-  size: 11pt,
-  lang: "es"
-)
-
-#set par(justify: true)
-#show heading: set block(above: 1.4em, below: 1em)
-
-#align(center)[
-  #text(17pt, weight: "bold")[Guía Metodológica Estandarizada: Análisis de Disbiosis Intestinal en Tuberculosis (RIPE) mediante Secuenciación Nanopore]
+#show: frontiers.with(
+  title: "Guía Metodológica Estandarizada: Análisis de Disbiosis Intestinal en Tuberculosis (RIPE) mediante Secuenciación Nanopore",
+  running-title: "Metodología Nanopore Microbioma TB-RIPE",
   
-  #v(0.5em)
-  #text(12pt)[Proyecto: Evaluación del impacto de la terapia antituberculosa en la microbiota intestinal]
-  #v(0.5em)
-  #text(11pt)[Documento de Referencia Técnica - Febrero 2026]
-]
-
-#v(2em)
+  authors: (
+    (
+      name: "José Luis Villadiego",
+      affiliations: ("1", "2"),
+    ),
+    (
+      name: "Nelson Enrique Arenas Suarez",
+      affiliations: ("2",),
+    ),
+    (
+      name: "Edgar Luis Diaz",
+      affiliations: ("1", "2", "*"),
+    ),
+  ),
+  
+  affiliations: (
+    "Grupo de Investigación en Micobacterias, Facultad de Medicina, Universidad de Cartagena, Cartagena, Colombia",
+    "Centro de Investigaciones Biomédicas (CIB), Cartagena, Colombia"
+  ),
+  
+  corresponding-author: (
+    name: "Edgar Luis Diaz",
+    email: "eldiazo@unal.edu.co",
+  ),
+  
+  keywords: (
+    "Microbiota", 
+    "Tuberculosis", 
+    "Oxford Nanopore", 
+    "EMU", 
+    "ANCOM-BC2", 
+    "q2-longitudinal", 
+    "Composicionalidad"
+  ),
+  
+  abstract: [
+    El tratamiento antituberculoso de primera línea (terapia RIPE) genera alteraciones profundas en la microbiota intestinal, con implicaciones sustanciales en la recuperación sistémica y la salud a largo plazo del paciente. La reciente adopción de la tecnología de secuenciación de nanoporos (Oxford Nanopore Technologies) para la amplificación del gen 16S rRNA de longitud completa exige una reevaluación absoluta de los paradigmas bioinformáticos heredados de plataformas de lecturas cortas. Este manuscrito detalla un flujo de trabajo metodológico exhaustivo, estandarizado y reproducible para el proyecto de investigación TB-RIPE. En esta guía se justifica teóricamente la exclusión de enfoques descriptivos propensos a artefactos visuales, como los mapas de calor complejos (ComplexHeatmap), en favor de un marco analítico inferencial robusto a la composicionalidad intrínseca de los datos del microbioma. La metodología aborda progresivamente desde el control de calidad adaptado a lecturas largas, pasando por la clasificación taxonómica probabilística mediante Expectation-Maximization (EMU), hasta el modelado de datos longitudinales (q2-longitudinal) y el análisis de abundancia diferencial con corrección de sesgos (ANCOM-BC2). Este documento sirve como manual operativo y marco teórico (Standard Operating Procedure) diseñado para garantizar la solidez estadística y la validez biológica en cohortes clínicas de tamaño moderado.
+  ],
+  
+  citation-style: "vancouver",
+  line-numbers: false,
+)
 
 = 1. Introducción General
 
-La presente guía establece el flujo de trabajo metodológico estandarizado para el análisis bioinformático del proyecto de investigación liderado por José Luis Villadiego, enfocado en evaluar las alteraciones estructurales de la microbiota intestinal en pacientes con tuberculosis pulmonar sometidos a terapia RIPE.
+La tuberculosis (TB) pulmonar continúa siendo un desafío global de salud pública. Su abordaje farmacológico mediante el esquema RIPE (Rifampicina, Isoniacida, Pirazinamida, Etambutol) ha demostrado ser sumamente eficaz en la erradicación de *Mycobacterium tuberculosis*. No obstante, la administración prolongada de este potente cóctel antimicrobiano induce alteraciones severas y a menudo persistentes en la estructura de la comunidad microbiana intestinal (disbiosis).
 
-Este documento surge de la necesidad de adaptar las metodologías clásicas de secuenciación de amplicones cortos (Illumina 16S V3-V4) a la tecnología de *secuenciación de lectura larga Oxford Nanopore Technologies (ONT)*, la cual ha sido seleccionada como plataforma para este estudio (según recibo de servicio No. 51799476). La transición a Nanopore permite la secuenciación del gen 16S completo (~1500 pb), ofreciendo una resolución taxonómica superior (nivel de especie) frente a las regiones variables parciales, pero requiere herramientas bioinformáticas específicas para manejar sus perfiles de error característicos.
+Históricamente, los estudios de metataxonómica para la evaluación de estas alteraciones han dependido de la secuenciación de amplicones cortos (típicamente las regiones hipervariables V3-V4 del gen 16S rRNA) mediante plataformas como Illumina. Si bien esto fue el estándar de oro durante la década pasada, su capacidad para discriminar microorganismos a nivel de especie es inherentemente limitada debido a la falta de información filogenética en un fragmento de apenas 300-400 pares de bases.
 
-El alcance de este análisis se centra exclusivamente en la *estructura y composición de la comunidad microbiana* (diversidad alfa/beta, taxonomía diferencial y dinámica longitudinal), excluyendo inferencias funcionales predictivas o análisis inmunológicos mecanicistas, los cuales serán abordados en etapas posteriores del macroproyecto. Se prioriza el uso de software de código abierto y algoritmos robustos frente a la composicionalidad de los datos.
+En respuesta a esta limitación, el presente proyecto ha pivotado hacia la **tecnología de secuenciación de tercera generación de Oxford Nanopore Technologies (ONT)**. ONT permite la secuenciación de moléculas individuales de ADN en tiempo real, facilitando la lectura del gen 16S rRNA en su totalidad (~1500 pares de bases). Esta transición metodológica proporciona una resolución taxonómica sin precedentes. Sin embargo, el perfil de error de ONT (históricamente dominado por inserciones y deleciones) requiere el abandono total de herramientas diseñadas para Illumina (como DADA2 o el obsoleto PyroNoise) y la adopción de algoritmos probabilísticos diseñados para lecturas largas y ruidosas.
 
-#pagebreak()
+El presente documento establece formalmente el nuevo *Standard Operating Procedure* (SOP) bioinformático para el análisis de los datos generados por la Universidad del Valle. 
 
-= 2. Flujo de Trabajo Metodológico
+= 2. Consideraciones Teóricas Centrales
 
-== Fase 0: Diseño Experimental y Coordinación de Secuenciación
+Antes de detallar el flujo de trabajo, es imperativo establecer el marco conceptual sobre la naturaleza matemática de los datos de secuenciación de alto rendimiento.
 
-Esta fase preliminar es crítica para garantizar que los datos crudos entregados por el servicio de secuenciación (Universidad del Valle) cumplan con los requisitos mínimos para el análisis bioinformático posterior.
+Los datos del microbioma son, por definición matemática, **datos composicionales** @gloor2017microbiome. La secuenciación impone un límite superior arbitrario (la profundidad de secuenciación total) al número de lecturas obtenidas por muestra. En consecuencia, las abundancias observadas son proporciones relativas, no cantidades absolutas. Si un taxón dominante sufre una disminución real debido al tratamiento con Rifampicina, todos los demás taxones presentes en la muestra mostrarán un aumento artificial y espurio en su abundancia relativa. Ignorar este hecho matemático (analizando proporciones directas con pruebas de Kruskal-Wallis o mapas de calor basados en distancia Euclidiana) genera tasas inaceptables de falsos positivos y agrupamientos biológicamente carentes de significado. 
 
-=== Justificación
-La tecnología Nanopore genera lecturas muy largas pero con una tasa de error por base superior a Illumina. Si la librería no se prepara o secuencia con los protocolos adecuados (ej. Kit 16S Barcoding SQK-16S024), la calidad de los datos puede comprometer la clasificación taxonómica. Es imperativo definir el formato de entrega para evitar incompatibilidades.
+Por esta razón, la metodología descrita a continuación está fundamentada enteramente en transformaciones y métricas conscientes de la composicionalidad (ej. Centered Log-Ratio y Aitchison distance).
 
-=== Fundamento Teórico
-La secuenciación Nanopore se basa en medir cambios en la corriente eléctrica cuando una molécula de ADN atraviesa un poro proteico. La señal eléctrica ("squiggle") se decodifica a bases nucleotídicas mediante un proceso llamado *basecalling*. Los modelos de basecalling (ej. *Sup* o *Super-accurate*) utilizan redes neuronales profundas para minimizar errores.
+= 3. Flujo de Trabajo Metodológico
 
-=== Conceptos Clave
-- *FASTQ*: Formato de archivo de texto que almacena secuencias biológicas y sus puntajes de calidad correspondientes.
-- *Basecalling*: Proceso computacional de traducción de señales eléctricas crudas a secuencia de nucleótidos.
-- *Barcode/Index*: Secuencia corta de ADN añadida a cada muestra para permitir la secuenciación multiplexada (varias muestras en una sola corrida).
-- *Demultiplexing*: Separación informática de las lecturas de secuenciación en archivos individuales por muestra, basada en sus barcodes.
+== Fase 0: Coordinación de Secuenciación
 
----
-
-== Fase 1: Control de Calidad (QC) y Preprocesamiento
-
-En esta etapa se filtran las lecturas de baja calidad y se eliminan secuencias no deseadas antes del análisis taxonómico.
-
-=== Herramientas
-- *NanoPlot / NanoStat*: Visualización de estadísticas de calidad.
-- *NanoFilt / Chopper*: Filtrado por calidad y longitud.
-- *Porechop*: Eliminación de adaptadores.
+El punto de partida del análisis no ocurre frente al computador, sino en la correcta estipulación de los parámetros de entrega de datos con el proveedor de secuenciación (Universidad del Valle).
 
 === Justificación
-A diferencia de los protocolos para Illumina (como DADA2), Nanopore requiere filtros adaptados a lecturas largas. Las lecturas muy cortas (< 1000 pb) en un protocolo de 16S completo suelen ser fragmentos degradados o inespecíficos. Las lecturas con baja calidad promedio (Phred < 10) introducen ruido en la asignación taxonómica.
+La exactitud del posterior análisis taxonómico con Nanopore depende abrumadoramente del modelo computacional utilizado por el proveedor para convertir la señal eléctrica del poro en secuencias de nucleótidos (proceso de *basecalling*). Un modelo rápido pero impreciso arruinará la resolución a nivel de especie, sin importar el rigor del downstream bioinformático.
+
+=== Procedimiento
+1.  Solicitar explícitamente que el *basecalling* se ejecute utilizando el modelo de mayor precisión disponible (Super-Accurate o *Sup* model) en herramientas como Guppy o Dorado.
+2.  Exigir la entrega de archivos `FASTQ` demultiplexados, separando las lecturas correspondientes a cada muestra biológica basándose en los códigos de barras (barcodes) del kit SQK-16S024 (o equivalente).
+3.  Requerir el reporte de calidad crudo de la corrida de secuenciación.
+
+=== Glosario de la Fase 0
+- **Basecalling:** Algoritmo de redes neuronales que traduce fluctuaciones de corriente iónica (squiggles) en secuencias (A, C, T, G) con scores de calidad asociados.
+- **Demultiplexing:** Separación algorítmica de un *pool* masivo de secuencias en archivos individuales (uno por paciente/tiempo) utilizando secuencias únicas denominadas *barcodes*.
+- **FASTQ:** Formato estándar de la industria que almacena la secuencia biológica junto con un carácter ASCII que representa matemáticamente la probabilidad de error de cada nucleótido individual.
+
+== Fase 1: Control de Calidad (QC) 
+
+La primera etapa computacional implica purgar los datos de secuencias basuras, quimeras, y fragmentos que carecen de longitud biológica esperada.
 
 === Fundamento Teórico
-El *Phred Quality Score* (Q) es una medida logarítmica de la probabilidad de error en una base llamada ($Q = -10 log_{10} P$). Un Q10 indica una precisión del 90% (1 error cada 10 bases), mientras que Q20 indica 99%. Para Nanopore 16S, un filtro de Q10 suele ser un balance aceptable entre retención de datos y precisión. El filtrado por longitud se basa en el tamaño biológico esperado del gen 16S (~1500 pb); desviaciones significativas sugieren amplificación inespecífica o degradación.
+A diferencia de Illumina, donde la degradación de la calidad ocurre drásticamente al final de la lectura, en ONT el error se distribuye uniformemente a lo largo de toda la secuencia. Las herramientas clásicas que truncan lecturas en puntos específicos no tienen sentido aquí. En su lugar, se requiere un filtrado global de la secuencia por su puntaje de calidad promedio (*Phred Score*) y por su longitud geométrica. Un gen 16S bacteriano tiene ~1500 pb; por lo tanto, lecturas de 400 pb en un experimento ONT representan amplificaciones inespecíficas, fragmentación mecánica o abortos de lectura en el poro.
 
-=== Conceptos Clave
-- *Phred Score (Q)*: Medida estandarizada de la calidad de secuenciación.
-- *Chimera*: Artefacto de PCR donde dos secuencias de ADN diferentes se unen artificialmente, creando un organismo híbrido inexistente.
-- *Adaptador*: Secuencia de ADN sintético ligada a los extremos del fragmento de interés para facilitar la secuenciación.
+=== Procedimiento y Justificación
+Se empleará `NanoPlot` @decoster2018nanopack para obtener estadísticas globales. Posteriormente, `Porechop` se utilizará para recortar adaptadores sintéticos que pudieron haber quedado ligados al inicio o final de las lecturas. 
 
----
+Finalmente, `NanoFilt` aplicará los dos filtros críticos:
+- *Quality filter (Q > 10)*: Garantiza que la lectura tenga al menos un 90% de exactitud base.
+- *Length filter (1300 < L < 1700 pb)*: Retiene estrictamente los amplicones que corresponden a un gen 16S completo, desechando ruido del ecosistema.
+
+=== Glosario de la Fase 1
+- **Phred Score (Q):** Expresión logarítmica de la probabilidad de que una base haya sido identificada incorrectamente ($Q = -10 \log_{10} P$).
+- **Quimera:** Artefacto de laboratorio donde la ADN polimerasa fusiona fragmentos de dos bacterias distintas durante la PCR, generando un gen falso híbrido.
+- **Adaptadores:** Fragmentos de ADN ligados artificialmente a los extremos de la muestra, necesarios para la química del motor de secuenciación (translocación por el poro).
 
 == Fase 2: Clasificación Taxonómica Robusta (EMU)
 
-Asignación de nombres científicos a las secuencias de ADN filtradas. Se sustituye el enfoque clásico de OTUs (QIIME 1) por métodos probabilísticos modernos.
-
-=== Herramientas
-- *EMU* (Expectation-Maximization for Ukranian/Ultralong reads): Clasificador taxonómico específico para 16S full-length de Nanopore.
-- *Base de Datos*: SILVA 138 o rrnDB (optimizada para copias de 16S).
-
-=== Justificación
-Los clasificadores estándar (como Naive Bayes en QIIME2) suelen fallar con el perfil de error de Nanopore, clasificando erróneamente a nivel de género o especie. *EMU* utiliza un algoritmo de Expectativa-Maximización que es superior para manejar la incertidumbre de las lecturas largas con errores, permitiendo resolución a nivel de *especie* con mayor fiabilidad que el clustering de OTUs al 97%.
+Esta etapa es el núcleo analítico donde se responde a la pregunta de "quién está ahí".
 
 === Fundamento Teórico
-El algoritmo *EM (Expectation-Maximization)* iterativamente estima las abundancias relativas de las especies presentes.
-1.  *Paso E (Expectation)*: Estima la probabilidad de que cada lectura provenga de una especie específica en la base de datos, considerando los errores de secuenciación.
-2.  *Paso M (Maximization)*: Actualiza las abundancias estimadas de las especies basándose en las probabilidades calculadas.
-Este ciclo se repite hasta converger, lo que permite "corregir" estadísticamente la asignación de lecturas ambiguas o con errores.
+Los pipelines tradicionales para microbioma (ej. QIIME 2 clásico) suelen usar clasificadores Naive Bayes entrenados con secuencias modelo. Estos fallan dramáticamente con datos ONT, ya que la tasa de inserciones/deleciones engaña a los *k-mers* del algoritmo bayesiano. 
+Para resolver esto, se adopta **EMU** @curry2022emu, un algoritmo diseñado ex profeso para ONT que emplea un marco de **Expectation-Maximization (EM)**. El algoritmo evalúa primero qué taxones de una base de datos (como SILVA 138) encajan mejor con las lecturas (alineamiento). En presencia de alineamientos ambiguos (una lectura que parece pertenecer a dos especies diferentes), el modelo EM ajusta iterativamente las probabilidades de asignación basándose en las abundancias globales de la comunidad, logrando separar especies estrechamente relacionadas.
 
-=== Conceptos Clave
-- *ASV (Amplicon Sequence Variant)*: Secuencia exacta de ADN recuperada, usada como unidad fundamental de análisis en lugar de OTUs.
-- *Resolución a nivel de especie*: Capacidad de distinguir entre organismos muy cercanos (ej. *E. coli* vs *Shigella*), facilitada por la longitud completa del gen 16S.
-- *Mock Community*: Una mezcla de control con bacterias conocidas usada para validar la precisión del clasificador taxonómico.
+=== Procedimiento y Justificación
+Se ejecutará EMU sobre los archivos `FASTQ` filtrados contra la base de datos `EMU-database` (una versión curada del proyecto rrnDB y NCBI). La salida principal es una tabla de abundancias relativas (o *counts* inferidos) a nivel de especie. Esto moderniza por completo la metodología del obsoleto agrupamiento por OTUs al 97% documentado en iteraciones pasadas del proyecto.
 
----
+=== Glosario de la Fase 2
+- **Expectation-Maximization (EM):** Método iterativo para encontrar estimaciones de máxima verosimilitud de parámetros en modelos estadísticos con variables latentes no observadas.
+- **ASV (Amplicon Sequence Variant):** Secuencias inferidas exactamente, sin agrupar por un límite de similitud arbitrario. EMU genera un equivalente probabilístico de ASVs.
+- **Base de Datos SILVA:** Repositorio exhaustivo y sometido a curación manual de secuencias de ARN ribosomal, el estándar actual en taxonomía bacteriana.
 
-== Fase 3: Análisis de Diversidad (Alpha y Beta)
+== Fase 3: Evaluación de la Estructura y Diversidad
 
-Evaluación de la complejidad de las comunidades microbianas dentro de las muestras y las diferencias entre ellas.
+Cálculo de la complejidad ecológica intra- e inter-muestra. Se ejecuta tras importar la matriz de EMU al entorno estandarizado de QIIME 2 @bolyen2019qiime.
 
-=== Herramientas
-- *QIIME 2* (plugins `diversity`, `deicode`).
-- Métricas: Shannon, Faith's PD (Alpha); Aitchison, UniFrac Ponderado (Beta).
+=== Fundamento Teórico y Procedimiento
+Para la **diversidad alfa** (complejidad dentro de un solo paciente), se calcularán el Índice de Shannon (que mide entropía termodinámica considerando riqueza y uniformidad) y el Faith's Phylogenetic Diversity (que suma las ramas del árbol evolutivo presentes).
 
-=== Justificación
-Para comparar pacientes TB vs Controles, y pre- vs post-tratamiento, necesitamos métricas que resuman la estructura comunitaria. Se recomienda usar distancias basadas en *CLR (Centered Log-Ratio)* o UniFrac para evitar sesgos por profundidad de secuenciación desigual, en lugar de la rarefacción clásica que desecha datos válidos.
+Para la **diversidad beta** (disimilitud entre pacientes o puntos temporales), es imperativo abordar la composicionalidad @gloor2017microbiome. Se reemplazará la métrica de Bray-Curtis (matemáticamente inapropiada para datos no normalizados de distinta profundidad de librería) por la métrica de **Aitchison**. Ésta se obtiene aplicando una transformación *Centered Log-Ratio (CLR)* a la matriz de abundancias, seguida de un cálculo simple de distancia Euclidiana en el nuevo espacio proyectado. Adicionalmente, se calculará UniFrac Ponderado, el cual penaliza las diferencias utilizando las distancias filogenéticas.
 
-=== Fundamento Teórico
-- *Diversidad Alpha*: Mide la "riqueza" (cuántas especies) y "equidad" (cómo se distribuyen) en una sola muestra. El índice de Shannon combina ambas propiedades (entropía de la información).
-- *Diversidad Beta*: Mide la disimilitud entre dos muestras.
-    - *UniFrac Ponderado*: Considera la distancia evolutiva entre bacterias y sus abundancias relativas. Si dos muestras comparten bacterias de ramas filogenéticas lejanas, son más distintas.
-    - *Aitchison Distance*: Distancia euclidiana calculada sobre datos transformados por CLR. Es robusta a la composicionalidad (ver Fase 5).
+Las diferencias se probarán estadísticamente usando análisis de varianza por permutaciones (PERMANOVA).
 
-=== Conceptos Clave
-- *Rarefacción*: Técnica de submuestreo aleatorio para igualar el número de lecturas por muestra. Controvertida en estadística moderna por pérdida de datos.
-- *PCoA (Principal Coordinates Analysis)*: Método de ordenación que visualiza las distancias complejas (multidimensionales) en un plano 2D o 3D.
-- *Filogenia*: Historia evolutiva de las especies, representada en forma de árbol.
+=== Glosario de la Fase 3
+- **Centered Log-Ratio (CLR):** Transformación logarítmica donde cada valor se divide por la media geométrica de su muestra, trasladando los datos composicionales (simplex) al espacio real simétrico.
+- **Aitchison Distance:** Distancia euclidiana calculada sobre una matriz de datos previamente transformada por CLR.
+- **PERMANOVA:** Prueba no paramétrica que evalúa si los centroides de dispersión de las muestras agrupadas difieren significativamente en un espacio multidimensional.
 
----
+== Fase 4: Modelado de Dinámica Longitudinal
 
-== Fase 4: Análisis Longitudinal
+El proyecto TB-RIPE implica medidas repetidas en T0, T2, T6 y T9. Evaluar esto mediante comparaciones transversales (t-tests independientes) constituye un error analítico grave.
 
-Evaluación de la dinámica temporal de la microbiota en los mismos sujetos a lo largo del tratamiento (T0, T2, T6, T9).
+=== Fundamento Teórico y Procedimiento
+Se aplicará el plugin `q2-longitudinal` @bokulich2018q2. Esta herramienta implementa enfoques de **Linear Mixed Effects (LME)**. En estos modelos, el "Tratamiento" y el "Tiempo" son considerados *efectos fijos* (la señal principal que buscamos aislar), mientras que el "Sujeto/Paciente" es considerado un *efecto aleatorio*. Esto permite que el modelo entienda que T0 y T2 de José son métricas correlacionadas, filtrando el inmenso ruido introducido por la dieta individual basal de José frente a la de otros pacientes.
 
-=== Herramientas
-- *QIIME 2* (plugin `q2-longitudinal`).
-- Métodos: *First differences*, *First distances*, *Linear Mixed Effects (LME)*.
+Asimismo, se utilizarán las *First Distances*, que calculan la tasa de cambio microbiológico entre un punto y el consecutivo (ej. T0 a T2 frente a T2 a T6) para demostrar en qué fase de la terapia farmacológica ocurre el choque disbótico primario.
 
-=== Justificación
-El diseño del proyecto Villadiego es longitudinal (medidas repetidas). Tratar los puntos temporales como muestras independientes (ANOVA simple) viola supuestos estadísticos y pierde potencia. `q2-longitudinal` modela explícitamente la correlación intra-sujeto, permitiendo distinguir cambios debidos al tratamiento de la variabilidad natural del individuo.
+=== Glosario de la Fase 4
+- **Volatilidad Microbiológica:** Medida empírica de qué tan inestable o cambiante es el ecosistema intestinal a través de múltiples ventanas temporales.
+- **Efectos Mixtos Lineales (LME):** Modelos de regresión avanzada que integran variables predictoras poblacionales (efectos fijos) con variables de idiosincrasia individual (efectos aleatorios).
+- **First Distances:** Distribución de distancias de diversidad beta calculadas exclusivamente entre pares de muestras temporalmente adyacentes del mismo individuo.
 
-=== Fundamento Teórico
-- *First Distances*: Calcula la distancia de diversidad beta entre un punto temporal y el siguiente *para el mismo sujeto*. Permite responder: "¿La microbiota cambia más drásticamente durante la fase intensiva (T0-T2) que en la fase de continuación (T2-T6)?".
-- *Linear Mixed Effects (LME)*: Modelos de regresión que incluyen "efectos fijos" (tratamiento, tiempo) y "efectos aleatorios" (el paciente). Capturan la tendencia global ajustando por la línea base de cada individuo.
+== Fase 5: Abundancia Diferencial y Descarte del Enfoque Visual Puro
 
-=== Conceptos Clave
-- *Diseño de Medidas Repetidas*: Estudio donde se toman múltiples observaciones del mismo sujeto bajo diferentes condiciones o tiempos.
-- *Volatilidad*: Magnitud del cambio en la composición microbiana a lo largo del tiempo.
-- *Efecto Aleatorio*: Variable que captura la variabilidad idiosincrática de cada sujeto (ej. genética, dieta basal) no explicada por las variables experimentales.
+El núcleo final del proyecto consiste en descubrir biomarcadores: qué géneros y especies sucumben ante RIPE y cuáles medran en el vacío ecológico.
 
----
+=== Procedimiento y Justificación
+Se utilizará la herramienta **ANCOM-BC2** (Analysis of Compositions of Microbiomes with Bias Correction 2) @lin2020ancom. Este marco estadístico estima un factor de sesgo invisible inducido por el muestreo de secuenciación de manera iterativa y ejecuta comparaciones directas, controlando estrictamente la tasa de descubrimiento falso (FDR).
 
-== Fase 5: Análisis Diferencial y Composicionalidad
+=== Justificación para la Exclusión de ComplexHeatmap
+El diseño analítico previo contemplaba la creación de mapas de calor anotados usando el entorno `ComplexHeatmap` @gu2016complex. Si bien esta herramienta es el patrón oro visual en la transcriptómica del cáncer, su aplicación en metataxonómica requiere cautela extrema. 
 
-Identificación de las bacterias específicas (biomarcadores) que aumentan o disminuyen significativamente debido a la terapia RIPE.
+Un mapa de calor agrupa columnas (pacientes) y filas (taxones) asumiendo una matriz espacial Euclidiana. Al forzar esta representación sobre la nube de datos dispersos de un microbioma fuertemente influido por la idiosincrasia del sujeto, el dendrograma tenderá a crear agrupamientos *espurios* o "microbiotipos visuales" que engañan la percepción del investigador. Este fenómeno se conoce como *apofenia estadística*. El heatmap describe patrones co-ocurrentes, pero carece de un estimador de covarianza, valor-*p*, o corrección de sesgos composicionales inherente a ANCOM-BC2.
 
-=== Herramientas
-- *ANCOM-BC2* (Analysis of Compositions of Microbiomes with Bias Correction).
-- *Songbird* (opcional, para rankings log-ratio).
-- *Exclusión*: No se utiliza *ComplexHeatmap* ni pruebas estándar (t-test, ANOVA) sobre abundancias crudas.
+Al centrar el trabajo de tesis exclusivamente en los cambios estructurales, delegar el hallazgo de resultados al dendrograma de un heatmap compromete la robustez inferencial. Las conclusiones del trabajo deben estar sustentadas en los coeficientes beta y los q-valores de ANCOM-BC2 y del LME, descartando la dependencia de visualizaciones complejas que simulan, erróneamente, solidez estadística formal.
 
-=== Justificación
-Los datos de secuenciación son *composicionales*: solo conocemos la proporción de cada bacteria, no su cantidad absoluta. Si una bacteria dominante disminuye, las demás parecerán aumentar matemáticamente aunque su cantidad real no cambie. ANCOM-BC2 corrige este sesgo estimando un "bias de muestreo" para cada muestra. Se descarta ComplexHeatmap como herramienta analítica principal para evitar sobreinterpretar agrupamientos visuales sin sustento estadístico robusto.
+=== Glosario de la Fase 5
+- **Bias Correction (Corrección de Sesgo):** Proceso algebraico interno en ANCOM que calibra la pérdida de la noción de masa total (biomasa absoluta) intrínseca en todos los datos de High-Throughput Sequencing.
+- **FDR (False Discovery Rate):** Probabilidad esperada de rechazar la hipótesis nula incorrectamente al realizar múltiples comparaciones en simultáneo. Controlado comúnmente con el algoritmo de Benjamini-Hochberg.
+- **Apofenia Estadística:** Identificación cognitiva errónea de patrones o conexiones significativas en datos esencialmente ruidosos o aleatorios, frecuentemente catalizada por herramientas de ordenamiento jerárquico incontrolado.
 
-=== Fundamento Teórico
-- *Composicionalidad*: Propiedad de los datos que suman una constante (ej. 100%). Implica que las variables no son independientes; el cambio en una afecta a todas las demás.
-- *Transformación CLR (Centered Log-Ratio)*: Transforma los datos del simplex (espacio de proporciones) al espacio real euclidiano mediante el logaritmo de la razón entre la abundancia de una característica y la media geométrica de todas las características. $`"CLR"`(x) = \ln(x / g(x))$.
-- *Bias Correction*: Ajuste matemático que intenta recuperar las abundancias absolutas (o sus diferencias reales) a partir de las relativas observadas.
+= 4. Conclusión
 
-=== Conceptos Clave
-- *FDR (False Discovery Rate)*: Corrección estadística para múltiples comparaciones (ej. Benjamini-Hochberg) necesaria cuando se prueban cientos de bacterias simultáneamente.
-- *Simplex*: Espacio matemático donde residen los datos composicionales (como un triángulo para 3 componentes que suman 1).
-- *Log-Fold Change*: Medida de cuánto cambia una cantidad (en escala logarítmica) entre dos condiciones.
+La reformulación metodológica descrita provee a este proyecto de una armadura bioinformática contemporánea y de altísimo nivel. El flujo de trabajo no solo aborda las singularidades algorítmicas de la tecnología de nanoporos de tercera generación mediante EMU, sino que blindaje los análisis de la crítica matemática frecuentemente esgrimida contra los estudios microbiológicos (el sesgo de composicionalidad) apoyándose en ANCOM-BC2 y métricas de Aitchison. La inclusión de rutinas de modelado mixto lineal explícito descarta el error crónico de tratar los perfiles temporales como cohortes transversales inconexas. Por consiguiente, los descubrimientos que surjan de la aplicación de este SOP respecto a la toxicidad secundaria de la terapia RIPE poseerán un grado de validez reproductible y exenta de artefactos metodológicos.
 
-#pagebreak()
-
-= 3. Conclusión
-
-Esta guía metodológica reorienta el análisis del proyecto TB-RIPE hacia estándares contemporáneos (2025-2026), priorizando la *robustez estadística* frente a la mera descripción visual. Al adoptar la secuenciación Nanopore de longitud completa y herramientas conscientes de la composicionalidad (ANCOM-BC2, métricas robustas), el estudio podrá reportar hallazgos taxonómicos a nivel de especie con alta fiabilidad.
-
-La eliminación de visualizaciones complejas no esenciales (como *ComplexHeatmap*) y la adopción de modelos longitudinales formales (`q2-longitudinal`) aseguran que las conclusiones sobre la disbiosis sean artefactos biológicos reales y no consecuencias del ruido técnico o sesgos de análisis. Este flujo de trabajo garantiza que, aunque el tamaño muestral sea limitado (n=20 subcohorte), la potencia analítica sea máxima.
+#bibliography("refs.bib", style: "ieee")
